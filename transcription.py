@@ -1,4 +1,4 @@
-import whisper, os
+import whisper, os, sys
 from moviepy.editor import *
 # from gensim import
 import gensim
@@ -12,8 +12,8 @@ class Transcribe:
 
     def extract_audio(self):
         video = VideoFileClip(self.video_path).subclip(44,2640)
-        temp_dir = tempfile.gettempdir()
-        audio_path = os.path.join(temp_dir,"Audio.wav")               
+        temp_dir = tempfile.TemporaryDirectory()
+        audio_path = os.path.join(temp_dir.name,"Audio.wav")               
         video.audio.write_audiofile(audio_path)
         return audio_path,temp_dir
 
@@ -21,7 +21,7 @@ class Transcribe:
         model = whisper.load_model("base")
         # transcription = model.transcribe(input_path)
         transcription = model.transcribe(audio_path)
-        output_path = os.path.join(temp_dir,"Transcript.txt")
+        output_path = os.path.join(temp_dir.name,"Transcript.txt")
         with open(output_path,"w") as f:
             f.write(transcription["text"])
         return output_path
@@ -32,7 +32,7 @@ class Transcribe:
             trans_file = f.read()
         tokens = list(gensim.utils.tokenize(trans_file))
         tokens_list = [tokens[itr:itr+1500] for itr in range(0,len(tokens),1500)]
-        openai.api_key="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"
+        openai.api_key=""
         engine_list = openai.Engine.list()
         for sub_token_list in tokens_list:
             response = openai.Completion.create(engine="davinci",prompt="Summarize the following - "+" ".join(sub_token_list),temperature=0.3,
@@ -48,5 +48,10 @@ class Transcribe:
         return
 
 
-if __name__=="main":
-    Transcribe.get_summary()
+if __name__=="__main__":
+    video_path = sys.argv[1]
+    # Transcribe.get_summary()
+    transcribe = Transcribe(video_path)
+    audio_path, temp_dir = transcribe.extract_audio()
+    output_path = transcribe.generate_transcription(audio_path, temp_dir)
+    print(output_path)
